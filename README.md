@@ -7,8 +7,6 @@ Welcome to this repository. This contains hands-on material for a workshop held 
 | ---------------- | ------------------------------------------------------------------- |
 | `insecure/`      | Example of bad version when building a container image.             |
 | `secure/`        | Fixed version of building phase.                                    |
-| `run/insecure`   | Example of bad version when running or deploying a container image. |
-| `run/secure`     | Fixed version of running phase.                                     |
 
 Build with e.g. `docker build -t demo:secure secure/`.
 
