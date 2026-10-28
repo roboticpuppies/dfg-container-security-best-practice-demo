@@ -1,38 +1,28 @@
-# You can use a .dockerignore file to exclude files or directories from the build context.
-# This helps avoid sending unwanted files and directories to the builder, improving build speed,
-# especially when using a remote builder.
-# The syntax of the .dockerignore file is similar to that of .gitignore files.
+# .dockerignore excludes files from the build context.
+# Benefit: faster builds, and secrets never get sent to the builder.
 # https://docs.docker.com/build/concepts/context/#dockerignore-files
 
-# Ignore node_modules directory
-node_modules
-
-# Ignore logs
-logs
-*.log
-
-# Ignore temporary files
-tmp
-*.tmp
-
-# Ignore build directories
-dist
-build
-
-# Ignore Dockerfile
-Dockerfile
-
-# Ignore environment variables
+# Secrets and credentials (most important!)
 .env
+.env.*
+*.pem
+*.key
 
-# Ignore OS generated files
-.DS_Store
-Thumbs.db
-
-# Ignore IDE specific files
+# Version control and IDE files
+.git
 .vscode
 .idea
 *.swp
 
-# Ignore .git directory if needed
-.git
+# Docker files, logs, temp and build output
+Dockerfile
+.dockerignore
+*.log
+tmp
+*.tmp
+dist
+build
+
+# OS generated files
+.DS_Store
+Thumbs.db

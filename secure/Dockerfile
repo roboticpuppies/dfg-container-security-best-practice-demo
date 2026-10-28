@@ -1,43 +1,41 @@
-# Correction #1: Use multi-stage builds to reduce the image size
-# and reduce the attack surface
+# syntax=docker/dockerfile:1
+
+# Correction #1: Multi-stage build
+# Compiler, source code and build tools stay in this stage and are NOT shipped.
+# Pin the version (never `latest`) so builds are reproducible and predictable.
 FROM golang:1.21-alpine AS build
 WORKDIR /app
 
-# Correction #2: Use .dockerignore to exclude unnecessary files
-# The copy command here is okay to do because when using multi-stage builds
-# the final image will only contain the binary file and not the source code
+# The whole folder is copied here, but that's fine: only the binary reaches the final image.
+# .dockerignore keeps secrets (.env, keys) out of the build context in the first place.
 COPY . .
 RUN go mod tidy && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o server .
 
-# Correction #3: Use smaller base image as the final image
-# You can use Alpine, Scratch, Ubuntu, or any other small base image depending on your needs
-# You can also use Distroless images for more security
-# Using Scratch or Distroless images will not have a shell, package manager, or any other programs in typical Linux distributions.
-# So if a hacker gains access to the container, they won't be able to do much
-# However, those images are not recommended for development because they are harder to debug
-# since you can't exec into the container and run commands.
-# They also requires more technical knowledge to use.
-# So to balance between security and ease of use, I'll use Alpine here
-# https://medium.com/google-cloud/alpine-distroless-or-scratch-caac35250e0b
+# Correction #2: Small, pinned base image for the final stage
+# Fewer packages = fewer vulnerabilities and less for an attacker to use.
+# Alpine balances security and ease of use (Scratch/Distroless are even smaller but have no shell to debug).
 FROM alpine:3.21.3 AS final
 
-# Correction #4: Use ARG instead of ENV to pass build-time variables
-# This is because ARG is only available during the build stage
-# and the values are not stored in the final image
-ARG DBPASSWORD
-ARG DBNAME
-ARG DBUSER
-
-# Correction #5: Use non-root user
-# However, you need to make sure that the user has the necessary permissions to run the application
-USER nobody:nogroup
+# Correction #3: Run as a dedicated non-root user
+# If the app is hacked, the attacker is not root inside the container.
+# A fixed numeric UID lets tools (e.g. Kubernetes runAsNonRoot) verify it.
+RUN addgroup -S -g 10001 app && adduser -S -u 10001 -G app app
 
 WORKDIR /app
-# The COPY command here is to copy the binary file from the build stage
-# to the final image
-COPY --from=build --chown=nobody:nogroup /app/server .
 
-# Correction #6: Only expose the necessary port
+# Correction #4: Keep the binary owned by root (read + execute only for the app user)
+# So the app cannot overwrite its own binary.
+COPY --from=build /app/server .
+
+# Correction #5: Switch to the non-root user AFTER all root-only steps are done
+USER 10001:10001
+
+# Correction #6: No secrets in the image
+# Don't use ENV or ARG for passwords: both are visible with `docker history`.
+# Pass them at runtime (docker run -e / secrets), or use `RUN --mount=type=secret` if needed at build time.
+
+# Correction #7: Expose only the port the app needs
 EXPOSE 8080
 
+# Exec form: the app runs as PID 1 and receives stop signals properly
 CMD ["/app/server"]
